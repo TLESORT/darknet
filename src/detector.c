@@ -6,6 +6,10 @@
 #include "box.h"
 #include "demo.h"
 #include "option_list.h"
+#include "image.h"
+
+#include <opencv2/core/core_c.h>
+#include <opencv2/imgproc/imgproc_c.h>
 
 #ifdef OPENCV
 #include "opencv2/highgui/highgui_c.h"
@@ -443,6 +447,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     list *options = read_data_cfg(datacfg);
     char *name_list = option_find_str(options, "names", "data/names.list");
     char **names = get_labels(name_list);
+    int saveFile=0;
+
     if (!prefix)
     {
         prefix = "predictions";
@@ -454,23 +460,31 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     }
     set_batch_network(&net, 1);
     srand(2222222);
-    clock_t time;
+    clock_t time=clock();
     char buff[256];
     char *input = buff;
     int j;
     float nms=.4;
+    CvCapture* media= cvCaptureFromFile(filename);
+    IplImage* frame;
+
+float ftime[50];
+float sum_time=0.f;
+float mean_frame=0.f;
+float var_sum=0.f;
+float var_time=0.f;
+int compteur=0;
+
+
     while(1){
-        if(filename){
-            strncpy(input, filename, 256);
-        } else {
-            printf("Enter Image Path: ");
-            fflush(stdout);
-            input = fgets(input, 256, stdin);
-            if(!input) return;
-            strtok(input, "\n");
-        }
-        image im = load_image_color(input,0,0);
-        image sized = resize_image(im, net.w, net.h);
+	printf("--------------------------------------------------------\n");
+	time=clock();
+	strncpy(input, filename, 256);
+	frame=cvQueryFrame(media);
+	image out = ipl_to_image(frame);
+	rgbgr_image(out);
+	image im = out;
+	image sized = resize_image(im, net.w, net.h);
         layer l = net.layers[net.n-1];
 
         box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
@@ -478,32 +492,58 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = calloc(l.classes + 1, sizeof(float *));
 
         float *X = sized.data;
+	
         time=clock();
+	
         network_predict(net, X);
-        printf("%s: Predicted in %f seconds.\n", input, sec(clock()-time));
+
+	ftime[compteur]=sec(clock()-time);
+	sum_time=sum_time+ftime[compteur];
+ 	printf(" ----------- COMPTEUR %d -----------.\n",compteur);
+        printf(" Predicted in %f seconds.\n",ftime[compteur]);
+	compteur+=1;
+
+	if (compteur==50){
+		for(int k=0;k<compteur;k++) var_sum=var_sum+ftime[k]*ftime[k];
+		mean_frame=sum_time/compteur;
+		var_sum=var_sum/compteur ; // E[X^2]
+		var_sum=var_sum - mean_frame*mean_frame;// E[X^2] - E[X]^2
+		var_time=(compteur/(compteur-1))*var_sum; // bias deleted by compteur/(compteur-1)
+		printf("Mean Time: %f s \n", mean_frame);
+		printf("Var  Time: %f s^2\n", var_time);
+		compteur = 0;
+		sum_time = 0;
+		var_sum = 0;
+		mean_frame=0.f;
+		break;
+	}
+
+
         get_region_boxes(l, 1, 1, thresh, probs, boxes, 0, 0, hier_thresh);
         if (l.softmax_tree && nms) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         else if (nms) do_nms_sort(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
         save_image(im, prefix);
-        show_image(im, prefix);
-
-        char *csv_filename;
-        csv_filename = malloc(strlen(prefix) + strlen(".csv"));
-        strcpy(csv_filename, prefix);
-        strcat(csv_filename, ".csv");
-        save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
-        printf("Wrote result to: %s.\n", csv_filename);
+	show_image(im, prefix);
+	if (saveFile==1){
+		char *csv_filename;
+		csv_filename = malloc(strlen(prefix) + strlen(".csv"));
+		strcpy(csv_filename, prefix);
+		strcat(csv_filename, ".csv");
+		save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
+		printf("Wrote result to: %s.\n", csv_filename);
+	}
 
         free_image(im);
         free_image(sized);
         free(boxes);
         free_ptrs((void **)probs, l.w*l.h*l.n);
 #ifdef OPENCV
-        cvWaitKey(0);
-        cvDestroyAllWindows();
+	if (cvWaitKey(10) >= 0) {
+		cvDestroyAllWindows();
+		break;
+	}
 #endif
-        if (filename) break;
     }
 }
 
