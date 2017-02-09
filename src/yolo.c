@@ -7,6 +7,7 @@
 #include "demo.h"
 #include "image.h"
 #include <sys/time.h>
+#include <unistd.h>
 
 #ifdef OPENCV
 #include <opencv2/core/core_c.h>
@@ -302,16 +303,28 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 	int j;
 	float nms=.4;
 	int _break=0;
-
+	char* mode="CPU";
+	int saveFile=1;
+//TODO make the prefix an argument of test_yolo
+	char* prefix = "predictions";
+#ifdef GPU
+	mode="GPU";
+#endif
 	if(filename){
-	    strncpy(input, filename, 256);
-	} else {
-	    printf("Enter Image Path: ");
-	    fflush(stdout);
-	    input = fgets(input, 256, stdin);
-	    if(!input) return;
-	    strtok(input, "\n");
-	}
+	if (access( filename, F_OK ) == -1) {
+		printf("bro I am not jocking could you give me a real path please!!!! thank you!\n");
+		fflush(stdout);
+		input = fgets(input, 256, stdin);
+		if(!input) return;
+		strtok(input, "\n");
+	} else strncpy(input, filename, 256);
+        } else {
+            printf("Enter Image Path: ");
+            fflush(stdout);
+            input = fgets(input, 256, stdin);
+            if(!input) return;
+            strtok(input, "\n");
+        }
 
 	printf("filename : %s \n",input);
 	CvCapture* media= cvCaptureFromFile(input);
@@ -366,11 +379,22 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 		var_time=(compteur/(compteur-1))*var_sum; // bias deleted by compteur/(compteur-1)
 		printf("Mean Time: %f ms \n", mean_frame);
 		printf("Var  Time: %f ms^2\n", var_time);
+		if (_break==1){
+			if (saveFile==1){
+				char *csv_filename;
+				csv_filename = malloc(strlen(prefix) + strlen(".csv"));
+				strcpy(csv_filename, prefix);
+				strcat(csv_filename, ".csv");
+				//save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
+				printf("Wrote result to: %s.\n", csv_filename);
+				save_statistics( csv_filename,"YOLOv1",mode, mean_frame, var_time, im.w, im.h);
+			}
+			break;
+		}
 		compteur = 0;
 		sum_time = 0;
 		var_sum = 0;
 		mean_frame=0.f;
-		if (_break==1)break;
 		_break=1;
 	}
 

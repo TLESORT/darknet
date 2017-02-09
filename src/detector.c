@@ -8,6 +8,7 @@
 #include "option_list.h"
 #include "image.h"
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <opencv2/core/core_c.h>
 //#include "include/opencv2/videoio/videoio_c.h"
@@ -449,8 +450,13 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	list *options = read_data_cfg(datacfg);
 	char *name_list = option_find_str(options, "names", "data/names.list");
 	char **names = get_labels(name_list);
-	int saveFile=0;
+	int saveFile=1;
 	int _break=0;
+	char* mode="CPU";
+
+#ifdef GPU
+	mode="GPU";
+#endif
 
 	if (!prefix)
 	{
@@ -468,9 +474,14 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	char *input = buff;
 	int j;
 	float nms=.4;
-
-        if(filename){
-            strncpy(input, filename, 256);
+	if(filename){
+	if (access( filename, F_OK ) == -1) {
+		printf("bro I am not jocking could you give me a real path please!!!! thank you!\n");
+		fflush(stdout);
+		input = fgets(input, 256, stdin);
+		if(!input) return;
+		strtok(input, "\n");
+	} else strncpy(input, filename, 256);
         } else {
             printf("Enter Image Path: ");
             fflush(stdout);
@@ -527,12 +538,23 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		var_time=(compteur/(compteur-1))*var_sum; // bias deleted by compteur/(compteur-1)
 		printf("Mean Time: %f ms \n", mean_frame);
 		printf("Var  Time: %f ms^2\n", var_time);
+		
+		if (_break==1){
+			if (saveFile==1){
+				char *csv_filename;
+				csv_filename = malloc(strlen(prefix) + strlen(".csv"));
+				strcpy(csv_filename, prefix);
+				strcat(csv_filename, ".csv");
+				//save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
+				printf("Wrote result to: %s.\n", csv_filename);
+				save_statistics( csv_filename,"YOLOv2",mode, mean_frame, var_time, im.w, im.h);
+			}
+			break;
+		}
 		compteur = 0;
 		sum_time = 0;
 		var_sum = 0;
 		mean_frame=0.f;
-		
-		if (_break==1)break;
 		_break=1;
 	}
 
@@ -543,14 +565,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
         //save_image(im, prefix);
 	//show_image(im, prefix);
-	if (saveFile==1){
-		char *csv_filename;
-		csv_filename = malloc(strlen(prefix) + strlen(".csv"));
-		strcpy(csv_filename, prefix);
-		strcat(csv_filename, ".csv");
-		save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
-		printf("Wrote result to: %s.\n", csv_filename);
-	}
+
 
         free_image(im);
         free_image(sized);

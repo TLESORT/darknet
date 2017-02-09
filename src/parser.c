@@ -30,6 +30,7 @@
 #include "shortcut_layer.h"
 #include "softmax_layer.h"
 #include "utils.h"
+#include <unistd.h>
 
 typedef struct{
     char *type;
@@ -1113,6 +1114,20 @@ void save_detections(char *image_id, char *csv_filename, int num, int width, int
         fprintf(fp, "%s,%d,%d,%f,%d,%d,%d,%d,%f,%s\n",
                 image_id, width, height, thresh, left, right, top, bot, prob, names[class]);
     }
+}
+
+void save_statistics( char *csv_filename,char* model,char*mode, int mean, int var, int width, int height)
+{
+	int exist=1;
+	if (access( csv_filename, F_OK ) == -1) exist=0;
+
+	FILE *fp;
+	if ((fp = fopen(csv_filename, "a+")) == NULL) {
+	printf("File open error: %s\n", csv_filename);
+	exit(1);
+	}
+	if (exist==0)fprintf(fp, "model, mode, mean (ms), var (ms^2), width, height\n");
+	fprintf(fp, "%s,%s,%d,%d,%d,%d\n",model,mode, mean, var, width, height);
 }
 
 
