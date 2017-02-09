@@ -450,6 +450,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	char *name_list = option_find_str(options, "names", "data/names.list");
 	char **names = get_labels(name_list);
 	int saveFile=0;
+	int _break=false;
 
 	if (!prefix)
 	{
@@ -489,8 +490,6 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	float var_time=0.f;
 	int compteur=0;	
 	float timepp=0.f;
-
-	int _clock=0;
 	static struct timeval g_probe_pp, endpp, deltapp;
 
 
@@ -508,20 +507,13 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = calloc(l.classes + 1, sizeof(float *));
 
         float *X = sized.data;
-	
-        if (_clock==1)time=clock();
-	else {
 	gettimeofday(&g_probe_pp, NULL);
-	}
 
         network_predict(net, X);
 
-	if (_clock==1) ftime[compteur]=sec(clock()-time);
-	else{
 	gettimeofday(&endpp, NULL);
 	timersub(&endpp, &g_probe_pp, &deltapp);
 	ftime[compteur]=deltapp.tv_sec * 1000.f + deltapp.tv_usec / 1000.f;
-	 }
 
 	sum_time=sum_time+ftime[compteur];
         printf("%d : Predicted in %f milli-seconds.\n",compteur, ftime[compteur]);
@@ -539,7 +531,9 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		sum_time = 0;
 		var_sum = 0;
 		mean_frame=0.f;
-		break;
+		
+		if (_break)break;
+		_break=true;
 	}
 
 
@@ -549,14 +543,14 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
         //save_image(im, prefix);
 	//show_image(im, prefix);
-	/*if (saveFile==1){
+	if (saveFile==1){
 		char *csv_filename;
 		csv_filename = malloc(strlen(prefix) + strlen(".csv"));
 		strcpy(csv_filename, prefix);
 		strcat(csv_filename, ".csv");
 		save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
 		printf("Wrote result to: %s.\n", csv_filename);
-	}*/
+	}
 
         free_image(im);
         free_image(sized);

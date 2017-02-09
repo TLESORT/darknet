@@ -301,6 +301,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 	char *input = buff;
 	int j;
 	float nms=.4;
+	int _break=false;
 
 	if(filename){
 	    strncpy(input, filename, 256);
@@ -369,7 +370,8 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 		sum_time = 0;
 		var_sum = 0;
 		mean_frame=0.f;
-		break;
+		if (_break)break;
+		_break=true;
 	}
 
 
