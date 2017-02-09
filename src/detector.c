@@ -7,8 +7,10 @@
 #include "demo.h"
 #include "option_list.h"
 #include "image.h"
+#include <sys/time.h>
 
 #include <opencv2/core/core_c.h>
+//#include "include/opencv2/videoio/videoio_c.h"
 #include <opencv2/imgproc/imgproc_c.h>
 
 #ifdef OPENCV
@@ -473,7 +475,11 @@ float sum_time=0.f;
 float mean_frame=0.f;
 float var_sum=0.f;
 float var_time=0.f;
-int compteur=0;
+int compteur=0;	
+float timepp=0.f;
+
+int _clock=0;
+static struct timeval g_probe_pp, endpp, deltapp;
 
 
     while(1){
@@ -493,14 +499,23 @@ int compteur=0;
 
         float *X = sized.data;
 	
-        time=clock();
-	
+        if (_clock==1)time=clock();
+	else {
+	gettimeofday(&g_probe_pp, NULL);
+	}
+
         network_predict(net, X);
 
-	ftime[compteur]=sec(clock()-time);
+	if (_clock==1) ftime[compteur]=sec(clock()-time);
+	else{
+	gettimeofday(&endpp, NULL);
+	timersub(&endpp, &g_probe_pp, &deltapp);
+	ftime[compteur]=deltapp.tv_sec * 1000.f + deltapp.tv_usec / 1000.f;
+	 }
+
 	sum_time=sum_time+ftime[compteur];
  	printf(" ----------- COMPTEUR %d -----------.\n",compteur);
-        printf(" Predicted in %f seconds.\n",ftime[compteur]);
+        printf(" Predicted in %f milli-seconds.\n",ftime[compteur]);
 	compteur+=1;
 
 	if (compteur==50){
@@ -509,8 +524,8 @@ int compteur=0;
 		var_sum=var_sum/compteur ; // E[X^2]
 		var_sum=var_sum - mean_frame*mean_frame;// E[X^2] - E[X]^2
 		var_time=(compteur/(compteur-1))*var_sum; // bias deleted by compteur/(compteur-1)
-		printf("Mean Time: %f s \n", mean_frame);
-		printf("Var  Time: %f s^2\n", var_time);
+		printf("Mean Time: %f ms \n", mean_frame);
+		printf("Var  Time: %f ms^2\n", var_time);
 		compteur = 0;
 		sum_time = 0;
 		var_sum = 0;
@@ -523,16 +538,16 @@ int compteur=0;
         if (l.softmax_tree && nms) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         else if (nms) do_nms_sort(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
-        save_image(im, prefix);
-	show_image(im, prefix);
-	if (saveFile==1){
+        //save_image(im, prefix);
+	//show_image(im, prefix);
+	/*if (saveFile==1){
 		char *csv_filename;
 		csv_filename = malloc(strlen(prefix) + strlen(".csv"));
 		strcpy(csv_filename, prefix);
 		strcat(csv_filename, ".csv");
 		save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
 		printf("Wrote result to: %s.\n", csv_filename);
-	}
+	}*/
 
         free_image(im);
         free_image(sized);
