@@ -467,6 +467,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     char *input = buff;
     int j;
     float nms=.4;
+
+printf("filename : %s \n",filename);
     CvCapture* media= cvCaptureFromFile(filename);
     IplImage* frame;
 

@@ -5,8 +5,13 @@
 #include "parser.h"
 #include "box.h"
 #include "demo.h"
+#include "image.h"
+#include <sys/time.h>
 
 #ifdef OPENCV
+#include <opencv2/core/core_c.h>
+//#include "include/opencv2/videoio/videoio_c.h"
+#include <opencv2/imgproc/imgproc_c.h>
 #include "opencv2/highgui/highgui_c.h"
 #endif
 
@@ -289,7 +294,6 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
     if(weightfile){
         load_weights(&net, weightfile);
     }
-    detection_layer l = net.layers[net.n-1];
     set_batch_network(&net, 1);
     srand(2222222);
     clock_t time;
@@ -297,39 +301,90 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
     char *input = buff;
     int j;
     float nms=.4;
+
+    CvCapture* media= cvCaptureFromFile(filename);
+    IplImage* frame;    
+
+float ftime[50];
+float sum_time=0.f;
+float mean_frame=0.f;
+float var_sum=0.f;
+float var_time=0.f;
+int compteur=0;	
+float timepp=0.f;
+int _clock=0;
+
+static struct timeval g_probe_pp, endpp, deltapp;
+
+    while(1){
+	strncpy(input, filename, 256);
+	frame=cvQueryFrame(media);
+	image out = ipl_to_image(frame);
+	rgbgr_image(out);
+        image im = out;//load_image_color(input,0,0);
+        image sized = resize_image(im, net.w, net.h);
+        float *X = sized.data;
+
+    detection_layer l = net.layers[net.n-1];
     box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
     float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
     for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
-    while(1){
-        if(filename){
-            strncpy(input, filename, 256);
-        } else {
-            printf("Enter Image Path: ");
-            fflush(stdout);
-            input = fgets(input, 256, stdin);
-            if(!input) return;
-            strtok(input, "\n");
-        }
-        image im = load_image_color(input,0,0);
-        image sized = resize_image(im, net.w, net.h);
-        float *X = sized.data;
-        time=clock();
+
+      if (_clock==1)time=clock();
+	else {
+	gettimeofday(&g_probe_pp, NULL);
+	}
+
+        
         network_predict(net, X);
-        printf("%s: Predicted in %f seconds.\n", input, sec(clock()-time));
+
+
+	if (_clock==1) ftime[compteur]=sec(clock()-time);
+	else{
+	gettimeofday(&endpp, NULL);
+	timersub(&endpp, &g_probe_pp, &deltapp);
+	ftime[compteur]=deltapp.tv_sec * 1000.f + deltapp.tv_usec / 1000.f;
+	 }
+	sum_time=sum_time+ftime[compteur];
+
+        printf("%s: Predicted in %f seconds.\n", input, ftime[compteur]);
+
+	compteur+=1;
+
+	if (compteur==50){
+		for(int k=0;k<compteur;k++) var_sum=var_sum+ftime[k]*ftime[k];
+		mean_frame=sum_time/compteur;
+		var_sum=var_sum/compteur ; // E[X^2]
+		var_sum=var_sum - mean_frame*mean_frame;// E[X^2] - E[X]^2
+		var_time=(compteur/(compteur-1))*var_sum; // bias deleted by compteur/(compteur-1)
+		printf("Mean Time: %f ms \n", mean_frame);
+		printf("Var  Time: %f ms^2\n", var_time);
+		compteur = 0;
+		sum_time = 0;
+		var_sum = 0;
+		mean_frame=0.f;
+		break;
+	}
+
+
+
+
         get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
         if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
         //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
         draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
-        save_image(im, "predictions");
-        show_image(im, "predictions");
+        //save_image(im, "predictions");
+        //show_image(im, "predictions");
 
         free_image(im);
         free_image(sized);
 #ifdef OPENCV
-        cvWaitKey(0);
-        cvDestroyAllWindows();
+	if (cvWaitKey(10) >= 0) {
+		cvDestroyAllWindows();
+		break;
+	}
 #endif
-        if (filename) break;
+        //if (filename) break;
     }
 }
 
@@ -343,7 +398,6 @@ void run_yolo(int argc, char **argv)
         fprintf(stderr, "usage: %s %s [train/test/valid] [cfg] [weights (optional)]\n", argv[0], argv[1]);
         return;
     }
-
     char *cfg = argv[3];
     char *weights = (argc > 4) ? argv[4] : 0;
     char *filename = (argc > 5) ? argv[5]: 0;
