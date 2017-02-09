@@ -450,7 +450,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	char *name_list = option_find_str(options, "names", "data/names.list");
 	char **names = get_labels(name_list);
 	int saveFile=0;
-	int _break=false;
+	int _break=0;
 
 	if (!prefix)
 	{
