@@ -446,48 +446,56 @@ void validate_detector_recall(char *cfgfile, char *weightfile)
 
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *prefix)
 {
-    list *options = read_data_cfg(datacfg);
-    char *name_list = option_find_str(options, "names", "data/names.list");
-    char **names = get_labels(name_list);
-    int saveFile=0;
+	list *options = read_data_cfg(datacfg);
+	char *name_list = option_find_str(options, "names", "data/names.list");
+	char **names = get_labels(name_list);
+	int saveFile=0;
 
-    if (!prefix)
-    {
-        prefix = "predictions";
-    }
-    image **alphabet = load_alphabet();
-    network net = parse_network_cfg(cfgfile);
-    if(weightfile){
-        load_weights(&net, weightfile);
-    }
-    set_batch_network(&net, 1);
-    srand(2222222);
-    clock_t time=clock();
-    char buff[256];
-    char *input = buff;
-    int j;
-    float nms=.4;
+	if (!prefix)
+	{
+	prefix = "predictions";
+	}
+	image **alphabet = load_alphabet();
+	network net = parse_network_cfg(cfgfile);
+	if(weightfile){
+	load_weights(&net, weightfile);
+	}
+	set_batch_network(&net, 1);
+	srand(2222222);
+	clock_t time=clock();
+	char buff[256];
+	char *input = buff;
+	int j;
+	float nms=.4;
 
-printf("filename : %s \n",filename);
-    CvCapture* media= cvCaptureFromFile(filename);
-    IplImage* frame;
+        if(filename){
+            strncpy(input, filename, 256);
+        } else {
+            printf("Enter Image Path: ");
+            fflush(stdout);
+            input = fgets(input, 256, stdin);
+            if(!input) return;
+            strtok(input, "\n");
+        }
 
-float ftime[50];
-float sum_time=0.f;
-float mean_frame=0.f;
-float var_sum=0.f;
-float var_time=0.f;
-int compteur=0;	
-float timepp=0.f;
+	printf("filename : %s \n",input);
+	CvCapture* media= cvCaptureFromFile(input);
+	IplImage* frame;
 
-int _clock=0;
-static struct timeval g_probe_pp, endpp, deltapp;
+	float ftime[50];
+	float sum_time=0.f;
+	float mean_frame=0.f;
+	float var_sum=0.f;
+	float var_time=0.f;
+	int compteur=0;	
+	float timepp=0.f;
+
+	int _clock=0;
+	static struct timeval g_probe_pp, endpp, deltapp;
 
 
     while(1){
-	printf("--------------------------------------------------------\n");
 	time=clock();
-	strncpy(input, filename, 256);
 	frame=cvQueryFrame(media);
 	image out = ipl_to_image(frame);
 	rgbgr_image(out);
@@ -516,8 +524,7 @@ static struct timeval g_probe_pp, endpp, deltapp;
 	 }
 
 	sum_time=sum_time+ftime[compteur];
- 	printf(" ----------- COMPTEUR %d -----------.\n",compteur);
-        printf(" Predicted in %f milli-seconds.\n",ftime[compteur]);
+        printf("%d : Predicted in %f milli-seconds.\n",compteur, ftime[compteur]);
 	compteur+=1;
 
 	if (compteur==50){
