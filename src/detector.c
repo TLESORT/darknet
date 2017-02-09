@@ -532,8 +532,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		var_sum = 0;
 		mean_frame=0.f;
 		
-		if (_break)break;
-		_break=true;
+		if (_break==1)break;
+		_break=1;
 	}
 
 
