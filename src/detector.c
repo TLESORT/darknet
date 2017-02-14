@@ -476,7 +476,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	float nms=.4;
 	if(filename){
 	if (access( filename, F_OK ) == -1) {
-		printf("bro I am not jocking could you give me a real path please!!!! thank you!\n");
+		printf("The path given is invalid, could you provide a valide one please for a mp4 file. thank you!\n");
 		fflush(stdout);
 		input = fgets(input, 256, stdin);
 		if(!input) return;
