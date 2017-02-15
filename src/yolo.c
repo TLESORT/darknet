@@ -387,7 +387,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 				strcat(csv_filename, ".csv");
 				//save_detections(filename, csv_filename, l.w*l.h*l.n, im.w, im.h, thresh, boxes, probs, names, l.classes);
 				printf("Wrote result to: %s.\n", csv_filename);
-				save_statistics( csv_filename,"YOLOv1",mode, mean_frame, var_time, net.w, net.h);
+				save_statistics("Darknet", csv_filename,"YOLOv1",mode, mean_frame, var_time, net.w, net.h);
 			}
 			break;
 		}

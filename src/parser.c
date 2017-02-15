@@ -1116,7 +1116,7 @@ void save_detections(char *image_id, char *csv_filename, int num, int width, int
     }
 }
 
-void save_statistics( char *csv_filename,char* model,char*mode, int mean, int var, int width, int height)
+void save_statistics(const char *framework,const char *csv_filename,const char* model,const char*mode, float mean, float var, int width, int height)
 {
 	int exist=1;
 	if (access( csv_filename, F_OK ) == -1) exist=0;
@@ -1126,8 +1126,8 @@ void save_statistics( char *csv_filename,char* model,char*mode, int mean, int va
 	printf("File open error: %s\n", csv_filename);
 	exit(1);
 	}
-	if (exist==0)fprintf(fp, "model, mode, mean (ms), var (ms^2), width, height\n");
-	fprintf(fp, "%s,%s,%d,%d,%d,%d\n",model,mode, mean, var, width, height);
+	if (exist==0)fprintf(fp, "framework, model, mode, mean (ms), std (ms), width, height\n");
+	fprintf(fp, "%s,%s,%s,%.2f,%.2f,%d,%d\n",framework,model,mode, mean,  sqrt(var), width, height);
 }
 
 
